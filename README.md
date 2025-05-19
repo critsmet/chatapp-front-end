@@ -1,6 +1,6 @@
 # ChatApp: The Front End
 
-The front end of ChatApp is a simple video and text chat application built with [Create React App](https://github.com/facebook/create-react-app), [Redux](https://github.com/reduxjs/redux), [SocketIO](https://github.com/socketio/socket.io), and [WebRTC](https://github.com/webrtc). An infinite amount of chat users can join four user live streams and interact in real time. The live app is hosted by Heroku [here](https://chatapp-front-end.herokuapp.com).
+The front end of ChatApp is a simple video and text chat application built with [Create React App](https://github.com/facebook/create-react-app), [Redux](https://github.com/reduxjs/redux), [SocketIO](https://github.com/socketio/socket.io), and [WebRTC](https://github.com/webrtc). An infinite amount of chat users can join four user live streams and interact in real time. The live app is hosted by Glitch [here](https://spiritual-dynamic-horesradish.glitch.me/) (please allow a few minutes for app to spin up).
 
 ## Installing & Running Locally
 
