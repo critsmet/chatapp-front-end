@@ -1,23 +1,36 @@
-# ChatApp: The Front End
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-The front end of ChatApp is a simple video and text chat application built with [Create React App](https://github.com/facebook/create-react-app), [Redux](https://github.com/reduxjs/redux), [SocketIO](https://github.com/socketio/socket.io), and [WebRTC](https://github.com/webrtc). An infinite amount of chat users can join four user live streams and interact in real time. The live app is hosted by Glitch [here](https://spiritual-dynamic-horesradish.glitch.me/) (please allow a few minutes for app to spin up).
+## Getting Started
 
-## Installing & Running Locally
+First, run the development server:
 
-After forking and cloning the repo to your computer, ```cd``` into the directory using your terminal and run ```npm install```. If you haven't already forked, cloned, and launched the backend repository locally, visit [this link](https://github.com/critsmet/chatapp-back-end) to the back end application and set it up, or go to the ```src/redux/appReducer``` file in the application's directory and change the argument for the ```socketIOClient``` to ```https://chatapp-back-end.herokuapp.com``` so that the local application uses the server-hosted application. Run ```npm start``` in your terminal to get the app up and running.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-## Future Development
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-This app is open to suggestions, contributions, and pull requests. Some ideas to take the app further:
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-### Responsive Design
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-Currently, the styling of the application is best suited for horizontal desktop and laptop screens. Users should be able to access the application's features on mobile devices and screens of differing proportions.
+## Learn More
 
-### More than 4 Users
+To learn more about Next.js, take a look at the following resources:
 
-Right now, a user broadcasting their video stream creates a "mesh network" by establishing a peer-to-peer connection with each other user also broadcasting a peer connection. Right now, the application only supports 4 users at a time – a decision made by the developer. More than 4 users should be able to use the application at the time.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-### Direct/Private Messaging
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-When the app is launched in the browser and a user is logged in, scrolling down reveals the handles of other users also connected to the application via the socket. Clicking on a handle should prompt a direct message in the text input field that is only received by that specific user.
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
