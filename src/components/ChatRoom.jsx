@@ -1,20 +1,21 @@
-import React, {useState, useEffect, useRef} from 'react'
+import {useState, useEffect, useRef} from 'react'
 
 import VideoStream from "./VideoStream"
 
-import {useDispatch, useSelector} from "react-redux"
+import cameraIcon from "../assets/video.png"
 
-import cameraIcon from "../media/video.png"
-
-const ChatRoom = ({broadcasterConnections}) => {
-
-  const dispatch = useDispatch()
-  const socket = useSelector(state => state.socket)
-  const user = useSelector(state => state.user)
-  const users = useSelector(state => state.users)
-  const messages = useSelector(state => state.messages)
-  const streams = useSelector(state => state.streams)
-  const clientStream = useSelector(state => state.streams).find(stream => stream.socketId === socket.id)
+const ChatRoom = ({
+  socket, 
+  clientUser, 
+  users, 
+  messages, 
+  streams, 
+  clientStream, 
+  openSpots,
+  setStreams,
+  setOpenSpots,
+  broadcasterConnections
+}) => {
 
   const [message, changeMessage] = useState("")
   const [clicked, toggleClicked] = useState(false)
@@ -22,20 +23,16 @@ const ChatRoom = ({broadcasterConnections}) => {
   const messagesContainerRef = useRef()
 
   useEffect(() => {
-    //scroll to the bottom of the chat whenever a new message comes in
-    //smooth only works on chrome right now
    messagesContainerRef.current.scrollTo({top: messagesContainerRef.current.scrollHeight, behavior: "smooth"})
  }, [messages]);
 
   const handleSend = (e) => {
-    //sends message to server, once it's processed the client will see it too
     e.preventDefault()
     socket.emit("sentMessage", message)
     changeMessage("")
   }
 
   const toggleBroadcast = () =>  {
-    //when the video call button is clicked twice rapidly, this prevents two streams from beginning and keeps the icon color in sync
     if (clicked && clientStream){
       endBroadcast()
       toggleClicked(false)
@@ -48,26 +45,28 @@ const ChatRoom = ({broadcasterConnections}) => {
   }
 
   const endBroadcast = () => {
-    //if we had kept the broadcaster connections in the reducer, we could've used useSelector to grab them here
-    //see lines 17-20 in App.js for reason why we used a ref instead of redux
-    //console.log("Closing connections");
-    //console.log(broadcasterConnections);
     broadcasterConnections.current.forEach(connectionObj => connectionObj.connection.close())
     broadcasterConnections.current = []
-    dispatch({type: "removeStream", payload: socket.id})
+    let streamToBeRemoved;
+    setStreams(streams.filter(stream => {
+      if(stream.socketId !== socket.id){
+        return true
+      } else {
+        streamToBeRemoved = stream
+        streamToBeRemoved.stream.getTracks().forEach(track => track.stop())
+        return false
+      }
+    }));
+    setOpenSpots([...openSpots, streamToBeRemoved && streamToBeRemoved.spot])
     socket.emit("endBroadcast")
   }
 
-  const renderStream = (pos) => {
-    //console.log(streams);
-    let stream = streams.find(obj => obj.pos === pos)
+  const renderStream = (spot) => {
+    let stream = streams.find(obj => obj.spot === spot)
     if (stream){
-      console.log(stream, pos);
-      //find the streamer
-      let streamer = [...users, user].find(user => user.socketId === stream.socketId)
-      //if the streamer is the client, then mute them
-      let isClient = streamer.socketId === user.socketId
-      return <VideoStream key={pos} streamObj={stream} streamer={streamer} isClient={isClient}/>
+      let streamer = [...users, clientUser].find(user => user.socketId === stream.socketId)
+      let isClient = streamer.socketId === clientUser.socketId
+      return <VideoStream key={spot} streamObj={stream} streamer={streamer} isClient={isClient}/>
     } else {
       return null
     }
@@ -91,7 +90,7 @@ const ChatRoom = ({broadcasterConnections}) => {
           </div>
         </div>
         <div id="column-2" className="w-third h-100 flex flex-column-reverse pb4">
-          <form id="message-input-field" onSubmit={handleSend}className="flex items-center justify-around h-10">
+          <form id="message-input-field" onSubmit={handleSend} className="flex items-center justify-around h-10">
             <img
               src={cameraIcon}
               alt="toggle camera"
@@ -125,7 +124,7 @@ const ChatRoom = ({broadcasterConnections}) => {
         </div>
       </div>
       <div id="usernames-container" className="bg-washed-yellow mt5 tl f3">
-        {users.length ? users.map(user => <p className="dib ma1" key={user.username}>{user.username}</p>) : `no one's here but you, ${user.username}`}
+        {users.length ? users.map(user => <p className="dib ma1" key={user.username}>{user.username}</p>) : `no one's here but you, ${clientUser.username}`}
       </div>
     </div>
   )

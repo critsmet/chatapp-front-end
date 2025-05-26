@@ -13,6 +13,15 @@ body::-webkit-scrollbar {
   display: none;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
 input {
   outline: none;
   border:none;
@@ -21,7 +30,14 @@ input {
   box-shadow: none;
 }
 
-#signup {
+
+#app {
+  text-align: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+#signin {
   position: absolute;
   top: 40%;
   left: 50%;
@@ -34,5 +50,5 @@ input {
 }
 
 #messages-container {
-  overflow-wrap: break-word;
+  -ms-overflow-style: none;
 }

@@ -1,15 +1,22 @@
-import React, {useRef, useEffect} from 'react'
+import {useRef, useEffect} from 'react'
 
 const VideoStream = ({streamObj, streamer, isClient}) => {
 
   const videoEl = useRef(null)
 
   useEffect(() => {
-    //console.log(stream);
-    let video = videoEl.current
-    video.srcObject = streamObj.stream
-    video.play()
+    addVideo()
   }, [videoEl])
+
+  async function addVideo() {
+    try{
+      let video = videoEl.current
+      await (video.srcObject = streamObj.stream);
+      video.play()
+    } catch(e){
+      console.log({e})
+    }
+  }
 
   return (
     <div id={`video-div-${streamObj.socketId}`} className="relative w-100 h-100 ">

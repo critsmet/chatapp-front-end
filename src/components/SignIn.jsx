@@ -1,15 +1,9 @@
 import React, {useState} from 'react'
 
-import { useSelector } from "react-redux"
-
-const Signin = () => {
+const Signin = ({ socket, users, isConnected }) => {
 
   const [username, changeUsername] = useState('')
   const [message, setMessage] = useState('')
-
-  const serverResponse = useSelector(state => state.serverResponse)
-  const socket = useSelector(state => state.socket)
-  const users = useSelector(state => state.users)
 
   const signupUser = (e) => {
     e.preventDefault()
@@ -57,8 +51,8 @@ const Signin = () => {
     )
 
     return (
-      <div id="signup" className="w-40">
-        {serverResponse ? formHTML : <p className="h1 pt1">Connecting to the server...</p>}
+      <div id="signin" className="w-40">
+        {isConnected ? formHTML : <p className="h1 pt1">Connecting to the server...</p>}
       </div>
     )
 }
