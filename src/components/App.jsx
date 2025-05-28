@@ -146,6 +146,12 @@ const App = () => {
       .then(() => socket.emit("answer", socketId, newRemotePeerConnection.localDescription))
   }
 
+  const addCandidate = (socketId, sender, candidate) => {
+      let ref = sender === "fromWatcher" ? broadcasterConnections.current : watcherConnections.current
+      let foundConnectionObj = ref.find(connectionObj => connectionObj.socketId === socketId)
+      foundConnectionObj && foundConnectionObj.connection.addIceCandidate(new RTCIceCandidate(candidate))
+  }
+
   const createOffer = (user, stream) => {
     const newLocalPeerConnection = new RTCPeerConnection({iceServers: iceServersConfig.current})
     broadcasterConnections.current = [...broadcasterConnections.current, {socketId: user.socketId, connection: newLocalPeerConnection}]
@@ -154,14 +160,7 @@ const App = () => {
     }
     newLocalPeerConnection.onicecandidate = (event) => {
       event.candidate && socket.emit("candidate", user.socketId, "fromBroadcaster", event.candidate)
-  }
-
-
-  const addCandidate = (socketId, sender, candidate) => {
-      let ref = sender === "fromWatcher" ? broadcasterConnections.current : watcherConnections.current
-      let foundConnectionObj = ref.find(connectionObj => connectionObj.socketId === socketId)
-      foundConnectionObj && foundConnectionObj.connection.addIceCandidate(new RTCIceCandidate(candidate))
-  }
+    }
 
     newLocalPeerConnection
       .createOffer()
