@@ -5,50 +5,6 @@ import ChatRoom from "./ChatRoom"
 
 import socket from '../socket.js'
 
-  const addCandidate = (socketId, sender, candidate) => {
-      let ref = sender === "fromWatcher" ? broadcasterConnections.current : watcherConnections.current
-      let foundConnectionObj = ref.find(connectionObj => connectionObj.socketId === socketId)
-      foundConnectionObj && foundConnectionObj.connection.addIceCandidate(new RTCIceCandidate(candidate))
-  }
-
-  const createOffer = (user, stream) => {
-    const newLocalPeerConnection = new RTCPeerConnection({iceServers: iceServersConfig.current})
-    broadcasterConnections.current = [...broadcasterConnections.current, {socketId: user.socketId, connection: newLocalPeerConnection}]
-    for (const track of stream.getTracks()){
-      newLocalPeerConnection.addTrack(track, stream)
-    }
-    newLocalPeerConnection.onicecandidate = (event) => {
-      event.candidate && socket.emit("candidate", user.socketId, "fromBroadcaster", event.candidate)
-    }
-
-    newLocalPeerConnection
-      .createOffer()
-      .then(sdp => newLocalPeerConnection.setLocalDescription(sdp))
-      .then(() => socket.emit("offer", user.socketId, newLocalPeerConnection.localDescription))
-  }
-
-  const closeWatcherConnection = (socketId) => {
-    watcherConnections.current = watcherConnections.current.filter(connectionObj => {
-      if (connectionObj.socketId !== socketId){
-        return true
-      } else {
-        connectionObj.connection.close()
-        return false
-      }
-    })
-  }
-
-  const closeBroadcasterConnection = (socketId) => {
-    broadcasterConnections.current = broadcasterConnections.current.filter(connectionObj => {
-      if (connectionObj.socketId !== socketId){
-        return true
-      } else {
-        connectionObj.connection.close()
-        return false
-      }
-    })
-  }
-
 const App = () => {
   const broadcasterConnections = useRef([]);
   const watcherConnections = useRef([]);
@@ -188,6 +144,51 @@ const App = () => {
       .then(() => newRemotePeerConnection.createAnswer())
       .then(sdp => newRemotePeerConnection.setLocalDescription(sdp))
       .then(() => socket.emit("answer", socketId, newRemotePeerConnection.localDescription))
+  }
+
+  const createOffer = (user, stream) => {
+    const newLocalPeerConnection = new RTCPeerConnection({iceServers: iceServersConfig.current})
+    broadcasterConnections.current = [...broadcasterConnections.current, {socketId: user.socketId, connection: newLocalPeerConnection}]
+    for (const track of stream.getTracks()){
+      newLocalPeerConnection.addTrack(track, stream)
+    }
+    newLocalPeerConnection.onicecandidate = (event) => {
+      event.candidate && socket.emit("candidate", user.socketId, "fromBroadcaster", event.candidate)
+  }
+
+
+  const addCandidate = (socketId, sender, candidate) => {
+      let ref = sender === "fromWatcher" ? broadcasterConnections.current : watcherConnections.current
+      let foundConnectionObj = ref.find(connectionObj => connectionObj.socketId === socketId)
+      foundConnectionObj && foundConnectionObj.connection.addIceCandidate(new RTCIceCandidate(candidate))
+  }
+
+    newLocalPeerConnection
+      .createOffer()
+      .then(sdp => newLocalPeerConnection.setLocalDescription(sdp))
+      .then(() => socket.emit("offer", user.socketId, newLocalPeerConnection.localDescription))
+  }
+
+  const closeWatcherConnection = (socketId) => {
+    watcherConnections.current = watcherConnections.current.filter(connectionObj => {
+      if (connectionObj.socketId !== socketId){
+        return true
+      } else {
+        connectionObj.connection.close()
+        return false
+      }
+    })
+  }
+
+  const closeBroadcasterConnection = (socketId) => {
+    broadcasterConnections.current = broadcasterConnections.current.filter(connectionObj => {
+      if (connectionObj.socketId !== socketId){
+        return true
+      } else {
+        connectionObj.connection.close()
+        return false
+      }
+    })
   }
 
   return (
