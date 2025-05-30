@@ -1,10 +1,10 @@
 # ChatApp: The Front End
 
-The front end of ChatApp is a simple video and text chat application built with [Create React App](https://github.com/facebook/create-react-app), [SocketIO](https://github.com/socketio/socket.io), and [WebRTC](https://github.com/webrtc). An infinite amount of chat users can join four user live streams and interact in real time. The live app is hosted by Render [here](https://chatapp-front-end.onrender.com) (please allow a few minutes for app to spin up).
+The front end of ChatApp is a simple video and text chat application built with [Create React App](https://github.com/facebook/create-react-app), [SocketIO](https://github.com/socketio/socket.io), and [WebRTC](https://github.com/webrtc). An infinite amount of chat users can join four user live streams and interact in real time. The live app is hosted by Render [here](https://chatapp-front-end-zfdy.onrender.com) (please allow a few minutes for app to spin up).
 
 ## Installing & Running Locally
 
-After forking and cloning the repo to your computer, ```cd``` into the directory using your terminal and run ```npm install```. If you haven't already forked, cloned, and launched the backend repository locally, visit [this link](https://github.com/critsmet/chatapp-back-end) to the back end application and set it up, or go to the ```src/redux/appReducer``` file in the application's directory and change the argument for the ```socketIOClient``` to ```https://chatapp-back-end.onrender.com``` so that the local application uses the server-hosted application. Run ```npm start``` in your terminal to get the app up and running.
+After forking and cloning the repo to your computer, `cd` into the directory using your terminal and run `npm install`. If you haven't already forked, cloned, and launched the backend repository locally, visit [this link](https://github.com/critsmet/chatapp-back-end) to the back end application and set it up, or go to the `src/socket.js` file in the application's directory and change the argument for the `socketIOClient` to `https://chatapp-back-end.onrender.com` so that the local application uses the server-hosted application. Run `npm start` in your terminal to get the app up and running.
 
 ## Future Development
 
