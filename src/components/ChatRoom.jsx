@@ -10,7 +10,9 @@ const ChatRoom = ({
   socket,
   clientUser,
   users,
-  initialMessages,
+  setUsers,
+  messages,
+  setMessages,
   iceServers,
 }) => {
   const broadcasterConnections = useRef([]);
@@ -18,14 +20,12 @@ const ChatRoom = ({
   const messagesContainerRef = useRef();
 
   const [message, changeMessage] = useState("");
-  const [messages, setMessages] = useState([]);
   const [streams, setStreams] = useState([]);
   const [openSpots, setOpenSpots] = useState([1, 2, 3, 4]);
   const [clicked, toggleClicked] = useState(false);
   const clientStream = streams.find((stream) => stream.socketId === socket.id);
 
   useEffect(() => {
-    setMessages(initialMessages);
     socket.on("newMessage", onNewMessage);
     socket.on("userLogout", onUserLogoout);
     socket.on("answer", onAnswer);

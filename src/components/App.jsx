@@ -9,37 +9,37 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [clientUser, setClientUser] = useState({});
   const [users, setUsers] = useState([]);
-  const [initialMessages, setInitialMessages] = useState([]);
+  const [messages, setMessages] = useState([]);
 
   let iceServers = useRef(null);
 
   useEffect(() => {
+    socket.on("connectSuccess", onConnectSuccess);
+    socket.on("initializedSession", onInitializedSession);
     socket.on("disconnect", onDisconnect);
     socket.on("error", onError);
-    socket.on("connected", onConnected);
-    socket.on("initializedSession", onInitializedSession);
     return () => {
+      socket.off("connectSuccess", onConnectSuccess);
+      socket.off("initializedSession", onInitializedSession);
       socket.off("disconnect", onDisconnect);
       socket.off("error", onError);
-      socket.off("connected", onConnected);
-      socket.off("initializedSession", onInitializedSession);
     };
   }, []);
 
-  const onDisconnect = () => setIsConnected(false);
-
-  const onError = (error) => alert(error);
-
-  const onConnected = (servers, users, messages) => {
+  const onConnectSuccess = (servers, users, messages) => {
     iceServers.current = servers;
     setUsers(users);
-    setInitialMessages(messages);
+    setMessages(messages);
     setIsConnected(true);
   };
 
   const onInitializedSession = (user) => {
     setClientUser(user);
   };
+
+  const onDisconnect = () => setIsConnected(false);
+
+  const onError = (error) => alert(error);
 
   return (
     <div id="app" className={"fl w-100 pa2"}>
@@ -50,7 +50,9 @@ const App = () => {
           socket={socket}
           clientUser={clientUser}
           users={users}
-          initialMessages={initialMessages}
+          setUsers={setUsers}
+          messages={messages}
+          setMessages={setMessages}
           iceServers={iceServers}
         />
       )}
