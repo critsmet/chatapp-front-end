@@ -117,6 +117,7 @@ const ChatRoom = ({
   };
 
   const onUserLogoout = (user: User) => {
+    console.log("user logout");
     removeStream(user.socketId);
     closeWatcherConnection(user.socketId);
     closeBroadcasterConnection(user.socketId);
@@ -138,7 +139,7 @@ const ChatRoom = ({
       const stream = await navigator.mediaDevices.getUserMedia(
         Constants.VIDEO_CONSTRAINTS
       );
-      setStreams((prevStreams: Stream[]) => [
+      setStreams((prevStreams) => [
         ...prevStreams,
         {
           socketId: socket.id as string,
@@ -154,8 +155,12 @@ const ChatRoom = ({
   };
 
   const onBroadcastEnded = (socketId: string) => {
-    closeWatcherConnection(socketId);
-    removeStream(clientUser.socketId);
+    console.log("on broadcast ended");
+    if (socketId !== clientUser.socketId) {
+      console.log("shouldnt get here");
+      closeWatcherConnection(socketId);
+      removeStream(socketId);
+    }
   };
 
   const onOffer = (
@@ -287,22 +292,23 @@ const ChatRoom = ({
   };
 
   const removeStream = (socketId: string) => {
-    let streamToBeRemoved: Stream | undefined;
-    setStreams((prevStreams) =>
-      prevStreams.filter((stream) => {
-        if (stream.socketId !== socketId) {
-          return true;
-        } else {
-          streamToBeRemoved = stream;
-          streamToBeRemoved.stream.getTracks().forEach((track) => track.stop());
-          return false;
-        }
-      })
+    const streamToBeRemoved = streams.find(
+      (stream) => stream.socketId === socketId
     );
     if (streamToBeRemoved) {
+      streamToBeRemoved.stream.getTracks().forEach((track) => track.stop());
+      setStreams((prevStreams) => {
+        return prevStreams.filter((stream) => {
+          if (stream.socketId !== socketId) {
+            return true;
+          } else {
+            return false;
+          }
+        });
+      });
       setOpenSpots((prevOpenSpots) => [
         ...prevOpenSpots,
-        streamToBeRemoved!.spot,
+        streamToBeRemoved.spot,
       ]);
     }
   };
