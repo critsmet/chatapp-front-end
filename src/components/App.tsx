@@ -53,10 +53,9 @@ const App = () => {
   return (
     <div id="app" className={"fl w-100 pa2"}>
       {!clientUser.username || !isConnected ? (
-        <Signin socket={socket} users={users} isConnected={isConnected} />
+        <Signin users={users} isConnected={isConnected} />
       ) : (
         <ChatRoom
-          socket={socket}
           clientUser={clientUser}
           users={users}
           setUsers={setUsers}

@@ -1,14 +1,12 @@
 import { useState, Fragment, type FormEvent } from "react";
-import { Socket } from "socket.io-client";
 
+import socket from "../socket";
 import type { User } from "../types";
 
 const Signin = ({
-  socket,
   users,
   isConnected,
 }: {
-  socket: Socket;
   users: User[];
   isConnected: boolean;
 }) => {

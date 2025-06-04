@@ -6,17 +6,16 @@ import {
   type Dispatch,
   type FormEvent,
 } from "react";
-import { Socket } from "socket.io-client";
 
 import VideoStream from "./VideoStream";
 
 import Constants from "../constants.js";
+import socket from "../socket.js";
 import type { Stream, Message, User, Connection } from "../types.js";
 
 import cameraIcon from "../assets/video.png";
 
 const ChatRoom = ({
-  socket,
   clientUser,
   users,
   setUsers,
@@ -24,7 +23,6 @@ const ChatRoom = ({
   setMessages,
   iceServers,
 }: {
-  socket: Socket;
   clientUser: User;
   users: User[];
   setUsers: Dispatch<SetStateAction<User[]>>;
@@ -58,13 +56,6 @@ const ChatRoom = ({
   }, []);
 
   useEffect(() => {
-    messagesContainerRef.current?.scrollTo({
-      top: messagesContainerRef.current?.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
-
-  useEffect(() => {
     socket.on("userJoin", onUserJoin);
     return () => {
       socket.off("userJoin", onUserJoin);
@@ -85,42 +76,59 @@ const ChatRoom = ({
     };
   }, [users, openSpots]);
 
-  const handleSend = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    socket.emit("sendMessage", message);
-    changeMessage("");
-  };
+  useEffect(() => {
+    messagesContainerRef.current?.scrollTo({
+      top: messagesContainerRef.current?.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
 
-  const toggleBroadcast = () => {
-    if (clicked && clientStream) {
-      endBroadcast();
-      toggleClicked(false);
-    } else if (clicked && !clientStream) {
-      return null;
-    } else {
-      toggleClicked(true);
-      socket.emit("requestBroadcast");
-    }
-  };
-
-  const endBroadcast = () => {
-    broadcasterConnections.current.forEach((connectionObj) =>
-      connectionObj.connection.close()
-    );
-    broadcasterConnections.current = [];
-    removeStream(clientUser.socketId);
-    socket.emit("endBroadcast");
-  };
+  useEffect(() => {
+    messagesContainerRef.current?.scrollTo({
+      top: messagesContainerRef.current?.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
 
   const onNewMessage = (message: Message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
   };
 
   const onUserLogoout = (user: User) => {
-    console.log("user logout");
     removeStream(user.socketId);
     closeWatcherConnection(user.socketId);
     closeBroadcasterConnection(user.socketId);
+  };
+
+  const onAnswer = (socketId: string, description: RTCSessionDescription) => {
+    let foundConnectionObj = broadcasterConnections.current.find(
+      (connectionObj) => connectionObj.socketId === socketId
+    );
+    if (foundConnectionObj) {
+      foundConnectionObj.connection.setRemoteDescription(description);
+    }
+  };
+
+  const onCandidate = (
+    socketId: string,
+    candidate: RTCIceCandidate,
+    fromWatcher: boolean
+  ) => {
+    let foundConnectionObj = (
+      fromWatcher ? broadcasterConnections.current : watcherConnections.current
+    ).find((connectionObj) => connectionObj.socketId === socketId);
+    if (foundConnectionObj) {
+      foundConnectionObj.connection.addIceCandidate(
+        new RTCIceCandidate(candidate)
+      );
+    }
+  };
+
+  const onBroadcastEnded = (socketId: string) => {
+    if (socketId !== clientUser.socketId) {
+      closeWatcherConnection(socketId);
+      removeStream(socketId);
+    }
   };
 
   const onUserJoin = (user: User) => {
@@ -128,6 +136,17 @@ const ChatRoom = ({
     if (clientStream) {
       createOffer(user, clientStream.stream);
     }
+  };
+
+  const onOffer = (
+    socketId: string,
+    description: RTCSessionDescriptionInit
+  ) => {
+    let newRemotePeerConnection = new RTCPeerConnection({
+      iceServers,
+    });
+    createAnswer(newRemotePeerConnection, socketId, description);
+    getStream(newRemotePeerConnection, socketId);
   };
 
   const onBroadcastRequestResponse = async ({
@@ -154,47 +173,13 @@ const ChatRoom = ({
     }
   };
 
-  const onBroadcastEnded = (socketId: string) => {
-    console.log("on broadcast ended");
-    if (socketId !== clientUser.socketId) {
-      console.log("shouldnt get here");
-      closeWatcherConnection(socketId);
-      removeStream(socketId);
-    }
-  };
-
-  const onOffer = (
-    socketId: string,
-    description: RTCSessionDescriptionInit
-  ) => {
-    let newRemotePeerConnection = new RTCPeerConnection({
-      iceServers,
-    });
-    createAnswer(newRemotePeerConnection, socketId, description);
-    getStream(newRemotePeerConnection, socketId);
-  };
-
-  const onAnswer = (
-    socketId: string,
-    description: RTCSessionDescriptionInit
-  ) => {
-    let foundConnectionObj = broadcasterConnections.current.find(
-      (connectionObj) => connectionObj.socketId === socketId
+  const endBroadcast = () => {
+    broadcasterConnections.current.forEach((connectionObj) =>
+      connectionObj.connection.close()
     );
-    if (foundConnectionObj) {
-      foundConnectionObj.connection.setRemoteDescription(description);
-    }
-  };
-
-  const onCandidate = (socketId: string, candidate: RTCIceCandidate) => {
-    let foundConnectionObj = broadcasterConnections.current.find(
-      (connectionObj) => connectionObj.socketId === socketId
-    );
-    if (foundConnectionObj) {
-      foundConnectionObj.connection.addIceCandidate(
-        new RTCIceCandidate(candidate)
-      );
-    }
+    broadcasterConnections.current = [];
+    removeStream(clientUser.socketId);
+    socket.emit("endBroadcast");
   };
 
   const createAnswer = async (
@@ -211,13 +196,17 @@ const ChatRoom = ({
     ];
     connection.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("candidate", socketId, "fromWatcher", event.candidate);
+        socket.emit("candidate", socketId, event.candidate, true);
       }
     };
     await connection.setRemoteDescription(description);
     const sdp = await connection.createAnswer();
     await connection.setLocalDescription(sdp);
-    socket.emit("answer", socketId, connection.localDescription);
+    socket.emit(
+      "answer",
+      socketId,
+      connection.localDescription as RTCSessionDescription
+    );
   };
 
   const createOffer = async (user: User, stream: MediaStream) => {
@@ -233,12 +222,7 @@ const ChatRoom = ({
     }
     newLocalPeerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit(
-          "candidate",
-          user.socketId,
-          "fromBroadcaster",
-          event.candidate
-        );
+        socket.emit("candidate", user.socketId, event.candidate, false);
       }
     };
     const sdp = await newLocalPeerConnection.createOffer();
@@ -246,7 +230,7 @@ const ChatRoom = ({
     socket.emit(
       "offer",
       user.socketId,
-      newLocalPeerConnection.localDescription
+      newLocalPeerConnection.localDescription as RTCSessionDescription
     );
   };
 
@@ -310,6 +294,24 @@ const ChatRoom = ({
         ...prevOpenSpots,
         streamToBeRemoved.spot,
       ]);
+    }
+  };
+
+  const handleSend = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    socket.emit("sendMessage", message);
+    changeMessage("");
+  };
+
+  const toggleBroadcast = () => {
+    if (clicked && clientStream) {
+      endBroadcast();
+      toggleClicked(false);
+    } else if (clicked && !clientStream) {
+      return null;
+    } else {
+      toggleClicked(true);
+      socket.emit("requestBroadcast");
     }
   };
 

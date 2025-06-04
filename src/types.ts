@@ -9,10 +9,27 @@ export type ServerToClientEvents = {
   initializedSession: (user: User) => void;
   disconnect: () => void;
   error: (error: string) => void;
+  newMessage: (message: Message) => void;
+  userLogout: (user: User) => void;
+  answer: (socketId: string; description: RTCSessionDescription) => void;
+	candidate: (socketId: string, candidate: RTCIceCandidate, fromWatcher: boolean) => void;
+	broadcastEnded: (socketId: string) => void;
+	userJoin: (user: User) => void;
+	offer: (
+    socketId: string,
+    description: RTCSessionDescriptionInit
+  ) => void;
+	broadcastRequestResponse: ({ approved }: { approved: boolean }) => Promise<void>;
 };
 
 export type ClientToServerEvents = {
-  hello: () => void;
+	initializeSession: (username: string) => void;
+  candidate: (socketId: string, candidate: RTCIceCandidate, fromWatcher: boolean) => void; 
+	answer: (socketId: string, description: RTCSessionDescription) => void;
+	offer: (socketId: string, description: RTCSessionDescription) => void;
+	sendMessage: (message: string) => void; 
+	requestBroadcast: () => void;
+	endBroadcast: () => void;
 };
 
 // app types
