@@ -1,7 +1,7 @@
 {
   "name": "chatapp-front-end",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,6 +19,7 @@
     "@eslint/js": "^9.27.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@types/webrtc": "^0.0.46",
     "@vitejs/plugin-react": "^4.4.1",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.5",
@@ -27,7 +28,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.2.0",
-    "prettier": "3.5.3",
+    "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.33.0",
     "vite": "^6.3.5"

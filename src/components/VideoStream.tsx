@@ -1,7 +1,16 @@
 import { useRef, useEffect } from "react";
+import type { Stream, User } from "../types";
 
-const VideoStream = ({ streamObj, streamer, isClient }) => {
-  const videoEl = useRef(null);
+const VideoStream = ({
+  streamObj,
+  user,
+  isClient,
+}: {
+  streamObj: Stream;
+  user: User;
+  isClient: boolean;
+}) => {
+  const videoEl = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     addVideo();
@@ -10,8 +19,8 @@ const VideoStream = ({ streamObj, streamer, isClient }) => {
   async function addVideo() {
     try {
       let video = videoEl.current;
-      await (video.srcObject = streamObj.stream);
-      video.play();
+      video!.srcObject = streamObj.stream;
+      video!.play();
     } catch (e) {
       console.log({ e });
     }
@@ -22,13 +31,13 @@ const VideoStream = ({ streamObj, streamer, isClient }) => {
       id={`video-div-${streamObj.socketId}`}
       className="relative w-100 h-100 "
     >
-      <div className="absolute top-1 tc w-100 white">{streamer.username}</div>
+      <div className="absolute top-1 tc w-100 white">{user.username}</div>
       <video
         className="h-75"
         id={`stream-${streamObj.socketId}`}
         ref={videoEl}
         autoPlay={true}
-        muted={isClient ? "muted" : null}
+        muted={isClient ? true : false}
       />
     </div>
   );

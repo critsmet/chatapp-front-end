@@ -5,13 +5,18 @@ import ChatRoom from "./ChatRoom";
 
 import socket from "../socket.js";
 
-const App = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [clientUser, setClientUser] = useState({});
-  const [users, setUsers] = useState([]);
-  const [messages, setMessages] = useState([]);
+import type { User, Message } from "../types.ts";
 
-  let iceServers = useRef(null);
+const App = () => {
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [clientUser, setClientUser] = useState<User>({
+    socketId: "",
+    username: "",
+  });
+  const [users, setUsers] = useState<User[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  let iceServers = useRef<RTCIceServer[]>([]);
 
   useEffect(() => {
     socket.on("connectSuccess", onConnectSuccess);
@@ -26,20 +31,24 @@ const App = () => {
     };
   }, []);
 
-  const onConnectSuccess = (servers, users, messages) => {
+  const onConnectSuccess = (
+    servers: RTCIceServer[],
+    users: User[],
+    messages: Message[]
+  ) => {
     iceServers.current = servers;
     setUsers(users);
     setMessages(messages);
     setIsConnected(true);
   };
 
-  const onInitializedSession = (user) => {
+  const onInitializedSession = (user: User) => {
     setClientUser(user);
   };
 
   const onDisconnect = () => setIsConnected(false);
 
-  const onError = (error) => alert(error);
+  const onError = (error: string) => alert(error);
 
   return (
     <div id="app" className={"fl w-100 pa2"}>
@@ -53,7 +62,7 @@ const App = () => {
           setUsers={setUsers}
           messages={messages}
           setMessages={setMessages}
-          iceServers={iceServers}
+          iceServers={iceServers.current}
         />
       )}
     </div>

@@ -1,8 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  type SetStateAction,
+  type Dispatch,
+  type FormEvent,
+} from "react";
+import { Socket } from "socket.io-client";
 
 import VideoStream from "./VideoStream";
 
 import Constants from "../constants.js";
+import type { Stream, Message, User, Connection } from "../types.js";
 
 import cameraIcon from "../assets/video.png";
 
@@ -14,13 +23,21 @@ const ChatRoom = ({
   messages,
   setMessages,
   iceServers,
+}: {
+  socket: Socket;
+  clientUser: User;
+  users: User[];
+  setUsers: Dispatch<SetStateAction<User[]>>;
+  messages: Message[];
+  setMessages: Dispatch<SetStateAction<Message[]>>;
+  iceServers: RTCIceServer[];
 }) => {
-  const broadcasterConnections = useRef([]);
-  const watcherConnections = useRef([]);
-  const messagesContainerRef = useRef();
+  const broadcasterConnections = useRef<Connection[]>([]);
+  const watcherConnections = useRef<Connection[]>([]);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const [message, changeMessage] = useState("");
-  const [streams, setStreams] = useState([]);
+  const [streams, setStreams] = useState<Stream[]>([]);
   const [openSpots, setOpenSpots] = useState([1, 2, 3, 4]);
   const [clicked, toggleClicked] = useState(false);
   const clientStream = streams.find((stream) => stream.socketId === socket.id);
@@ -41,29 +58,34 @@ const ChatRoom = ({
   }, []);
 
   useEffect(() => {
-    messagesContainerRef.current.scrollTo({
-      top: messagesContainerRef.current.scrollHeight,
+    messagesContainerRef.current?.scrollTo({
+      top: messagesContainerRef.current?.scrollHeight,
       behavior: "smooth",
     });
   }, [messages]);
 
   useEffect(() => {
     socket.on("userJoin", onUserJoin);
-    return () => socket.off("userJoin", onUserJoin);
+    return () => {
+      socket.off("userJoin", onUserJoin);
+    };
   }, [clientStream]);
 
   useEffect(() => {
     socket.on("offer", onOffer);
-    return () => socket.off("offer", onOffer);
+    return () => {
+      socket.off("offer", onOffer);
+    };
   }, [openSpots]);
 
   useEffect(() => {
     socket.on("broadcastRequestResponse", onBroadcastRequestResponse);
-    return () =>
+    return () => {
       socket.off("broadcastRequestResponse", onBroadcastRequestResponse);
+    };
   }, [users, openSpots]);
 
-  const handleSend = (e) => {
+  const handleSend = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     socket.emit("sendMessage", message);
     changeMessage("");
@@ -90,32 +112,36 @@ const ChatRoom = ({
     socket.emit("endBroadcast");
   };
 
-  const onNewMessage = (message) => {
+  const onNewMessage = (message: Message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
   };
 
-  const onUserLogoout = (user) => {
+  const onUserLogoout = (user: User) => {
     removeStream(user.socketId);
     closeWatcherConnection(user.socketId);
     closeBroadcasterConnection(user.socketId);
   };
 
-  const onUserJoin = (user) => {
-    setUsers((prevUsers) => [...prevUsers, user]);
+  const onUserJoin = (user: User) => {
+    setUsers((prevUsers: User[]) => [...prevUsers, user]);
     if (clientStream) {
-      createOffer(user, clientStream.stream, broadcasterConnections);
+      createOffer(user, clientStream.stream);
     }
   };
 
-  const onBroadcastRequestResponse = async ({ approved }) => {
+  const onBroadcastRequestResponse = async ({
+    approved,
+  }: {
+    approved: boolean;
+  }) => {
     if (approved) {
       const stream = await navigator.mediaDevices.getUserMedia(
         Constants.VIDEO_CONSTRAINTS
       );
-      setStreams((prevStreams) => [
+      setStreams((prevStreams: Stream[]) => [
         ...prevStreams,
         {
-          socketId: socket.id,
+          socketId: socket.id as string,
           stream,
           spot: openSpots[0],
         },
@@ -127,23 +153,26 @@ const ChatRoom = ({
     }
   };
 
-  const onBroadcastEnded = (socketId) => {
+  const onBroadcastEnded = (socketId: string) => {
     closeWatcherConnection(socketId);
-    removeStream(currentUser.socketId);
+    removeStream(clientUser.socketId);
   };
 
-  const onOffer = (socketId, description) => {
+  const onOffer = (
+    socketId: string,
+    description: RTCSessionDescriptionInit
+  ) => {
     let newRemotePeerConnection = new RTCPeerConnection({
-      iceServers: iceServers.current,
+      iceServers,
     });
     createAnswer(newRemotePeerConnection, socketId, description);
-    const stream = getStream(newRemotePeerConnection, socketId);
-    if (stream) {
-      setStreams((prevStreams) => [...prevStreams, stream]);
-    }
+    getStream(newRemotePeerConnection, socketId);
   };
 
-  const onAnswer = (socketId, description) => {
+  const onAnswer = (
+    socketId: string,
+    description: RTCSessionDescriptionInit
+  ) => {
     let foundConnectionObj = broadcasterConnections.current.find(
       (connectionObj) => connectionObj.socketId === socketId
     );
@@ -152,12 +181,10 @@ const ChatRoom = ({
     }
   };
 
-  const onCandidate = (socketId, sender, candidate) => {
-    let foundConnectionObj = (
-      sender === "fromWatcher"
-        ? broadcasterConnections.current
-        : watcherConnections.current
-    ).find((connectionObj) => connectionObj.socketId === socketId);
+  const onCandidate = (socketId: string, candidate: RTCIceCandidate) => {
+    let foundConnectionObj = broadcasterConnections.current.find(
+      (connectionObj) => connectionObj.socketId === socketId
+    );
     if (foundConnectionObj) {
       foundConnectionObj.connection.addIceCandidate(
         new RTCIceCandidate(candidate)
@@ -165,7 +192,11 @@ const ChatRoom = ({
     }
   };
 
-  const createAnswer = async (connection, socketId, description) => {
+  const createAnswer = async (
+    connection: RTCPeerConnection,
+    socketId: string,
+    description: RTCSessionDescriptionInit
+  ) => {
     watcherConnections.current = [
       ...watcherConnections.current,
       {
@@ -184,9 +215,9 @@ const ChatRoom = ({
     socket.emit("answer", socketId, connection.localDescription);
   };
 
-  const createOffer = async (user, stream) => {
+  const createOffer = async (user: User, stream: MediaStream) => {
     const newLocalPeerConnection = new RTCPeerConnection({
-      iceServers: iceServers.current,
+      iceServers: iceServers,
     });
     broadcasterConnections.current = [
       ...broadcasterConnections.current,
@@ -214,7 +245,7 @@ const ChatRoom = ({
     );
   };
 
-  const closeWatcherConnection = (socketId) => {
+  const closeWatcherConnection = (socketId: string) => {
     watcherConnections.current = watcherConnections.current.filter(
       (connectionObj) => {
         if (connectionObj.socketId !== socketId) {
@@ -227,7 +258,7 @@ const ChatRoom = ({
     );
   };
 
-  const closeBroadcasterConnection = (socketId) => {
+  const closeBroadcasterConnection = (socketId: string) => {
     broadcasterConnections.current = broadcasterConnections.current.filter(
       (connectionObj) => {
         if (connectionObj.socketId !== socketId) {
@@ -240,20 +271,23 @@ const ChatRoom = ({
     );
   };
 
-  const getStream = (socketId, connection) => {
+  const getStream = (connection: RTCPeerConnection, socketId: string) => {
     connection.ontrack = (event) => {
       if (event.track.kind === "video") {
-        return {
-          socketId,
-          stream: event.streams[0],
-          spot: openSpots[0],
-        };
+        setStreams((prevStreams) => [
+          ...prevStreams,
+          {
+            socketId,
+            stream: event.streams[0],
+            spot: openSpots[0],
+          },
+        ]);
       }
     };
   };
 
-  const removeStream = (socketId) => {
-    let streamToBeRemoved;
+  const removeStream = (socketId: string) => {
+    let streamToBeRemoved: Stream | undefined;
     setStreams((prevStreams) =>
       prevStreams.filter((stream) => {
         if (stream.socketId !== socketId) {
@@ -268,29 +302,30 @@ const ChatRoom = ({
     if (streamToBeRemoved) {
       setOpenSpots((prevOpenSpots) => [
         ...prevOpenSpots,
-        streamToBeRemoved.spot,
+        streamToBeRemoved!.spot,
       ]);
     }
   };
 
-  const renderStream = (spot) => {
+  const renderStream = (spot: number) => {
     let stream = streams.find((obj) => obj.spot === spot);
     if (stream) {
       let streamer = [...users, clientUser].find(
         (user) => user.socketId === stream.socketId
       );
-      let isClient = streamer.socketId === clientUser.socketId;
-      return (
-        <VideoStream
-          key={spot}
-          streamObj={stream}
-          streamer={streamer}
-          isClient={isClient}
-        />
-      );
-    } else {
-      return null;
+      if (streamer) {
+        let isClient = streamer.socketId === clientUser.socketId;
+        return (
+          <VideoStream
+            key={spot}
+            streamObj={stream}
+            user={streamer}
+            isClient={isClient}
+          />
+        );
+      }
     }
+    return null;
   };
 
   const renderMessages = () => {

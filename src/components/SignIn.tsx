@@ -1,21 +1,32 @@
-import React, { useState } from "react";
+import { useState, Fragment, type FormEvent } from "react";
+import { Socket } from "socket.io-client";
 
-const Signin = ({ socket, users, isConnected }) => {
+import type { User } from "../types";
+
+const Signin = ({
+  socket,
+  users,
+  isConnected,
+}: {
+  socket: Socket;
+  users: User[];
+  isConnected: boolean;
+}) => {
   const [username, changeUsername] = useState("");
   const [message, setMessage] = useState("");
 
-  const signupUser = (e) => {
+  const signupUser = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (username === "") {
       setMessage("please enter a handle");
-    } else if (users.find((user) => user.username === username)) {
+    } else if (users.find((user: User) => user.username === username)) {
       setMessage("username taken");
     } else {
       socket.emit("initializeSession", username);
     }
   };
 
-  const formatInput = (value) => {
+  const formatInput = (value: string) => {
     setMessage("");
     if (value.length >= 13) {
       setMessage("max 12 characters");
@@ -29,7 +40,7 @@ const Signin = ({ socket, users, isConnected }) => {
   };
 
   const formHTML = (
-    <React.Fragment>
+    <Fragment>
       <p className="h1 pt1">{message}</p>
       <form
         id="signin-form"
@@ -56,7 +67,7 @@ const Signin = ({ socket, users, isConnected }) => {
           className="db w-25 h2 p3 br-pill white bg-dark-gray bg-animate hover-bg-mid-gray pointer tc f4"
         />
       </form>
-    </React.Fragment>
+    </Fragment>
   );
 
   return (
