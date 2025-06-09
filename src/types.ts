@@ -11,25 +11,34 @@ export type ServerToClientEvents = {
   error: (error: string) => void;
   newMessage: (message: Message) => void;
   userLogout: (user: User) => void;
-  answer: (socketId: string; description: RTCSessionDescription) => void;
-	candidate: (socketId: string, candidate: RTCIceCandidate, fromWatcher: boolean) => void;
-	broadcastEnded: (socketId: string) => void;
-	userJoin: (user: User) => void;
-	offer: (
+  answer: (socketId: string, description: RTCSessionDescription) => void;
+  candidate: (
     socketId: string,
-    description: RTCSessionDescriptionInit
+    candidate: RTCIceCandidate,
+    fromWatcher: boolean
   ) => void;
-	broadcastRequestResponse: ({ approved }: { approved: boolean }) => Promise<void>;
+  broadcastEnded: (socketId: string) => void;
+  userJoin: (user: User) => void;
+  offer: (socketId: string, description: RTCSessionDescriptionInit) => void;
+  broadcastRequestResponse: ({
+    approved,
+  }: {
+    approved: boolean;
+  }) => Promise<void>;
 };
 
 export type ClientToServerEvents = {
-	initializeSession: (username: string) => void;
-  candidate: (socketId: string, candidate: RTCIceCandidate, fromWatcher: boolean) => void; 
-	answer: (socketId: string, description: RTCSessionDescription) => void;
-	offer: (socketId: string, description: RTCSessionDescription) => void;
-	sendMessage: (message: string) => void; 
-	requestBroadcast: () => void;
-	endBroadcast: () => void;
+  initializeSession: (username: string) => void;
+  candidate: (
+    socketId: string,
+    candidate: RTCIceCandidate,
+    fromWatcher: boolean
+  ) => void;
+  answer: (socketId: string, description: RTCSessionDescription) => void;
+  offer: (socketId: string, description: RTCSessionDescription) => void;
+  sendMessage: (message: string) => void;
+  requestBroadcast: () => void;
+  endBroadcast: () => void;
 };
 
 // app types
