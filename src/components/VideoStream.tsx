@@ -13,9 +13,9 @@ const VideoStream = ({
   const videoEl = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    let video = videoEl.current;
+    const video = videoEl.current;
     video!.srcObject = streamObj.stream;
-  }, [videoEl]);
+  }, [videoEl, streamObj.stream]);
 
   return (
     <div

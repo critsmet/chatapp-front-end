@@ -3,9 +3,9 @@ import { useEffect, useState, useRef } from "react";
 import Signin from "./SignIn";
 import ChatRoom from "./ChatRoom";
 
-import socket from "../socket.js";
+import socket from "../socket";
 
-import type { User, Message } from "../types.ts";
+import type { User, Message } from "../types";
 
 const App = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -16,7 +16,7 @@ const App = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
 
-  let iceServers = useRef<RTCIceServer[]>([]);
+  const iceServers = useRef<RTCIceServer[]>([]);
 
   useEffect(() => {
     socket.on("connectSuccess", onConnectSuccess);

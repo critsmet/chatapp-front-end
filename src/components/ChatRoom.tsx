@@ -9,9 +9,9 @@ import {
 
 import VideoStream from "./VideoStream";
 
-import Constants from "../constants.js";
-import socket from "../socket.js";
-import type { Stream, Message, User, Connection } from "../types.js";
+import Constants from "../constants";
+import socket from "../socket";
+import type { Stream, Message, User, Connection } from "../types";
 
 import cameraIcon from "../assets/video.png";
 
@@ -101,7 +101,7 @@ const ChatRoom = ({
   };
 
   const onAnswer = (socketId: string, description: RTCSessionDescription) => {
-    let foundConnectionObj = broadcasterConnections.current.find(
+    const foundConnectionObj = broadcasterConnections.current.find(
       (connectionObj) => connectionObj.socketId === socketId
     );
     if (foundConnectionObj) {
@@ -114,7 +114,7 @@ const ChatRoom = ({
     candidate: RTCIceCandidate,
     fromWatcher: boolean
   ) => {
-    let foundConnectionObj = (
+    const foundConnectionObj = (
       fromWatcher ? broadcasterConnections.current : watcherConnections.current
     ).find((connectionObj) => connectionObj.socketId === socketId);
     if (foundConnectionObj) {
@@ -142,7 +142,7 @@ const ChatRoom = ({
     socketId: string,
     description: RTCSessionDescriptionInit
   ) => {
-    let newRemotePeerConnection = new RTCPeerConnection({
+    const newRemotePeerConnection = new RTCPeerConnection({
       iceServers,
     });
     createAnswer(newRemotePeerConnection, socketId, description);
@@ -316,13 +316,13 @@ const ChatRoom = ({
   };
 
   const renderStream = (spot: number) => {
-    let stream = streams.find((obj) => obj.spot === spot);
+    const stream = streams.find((obj) => obj.spot === spot);
     if (stream) {
-      let streamer = [...users, clientUser].find(
+      const streamer = [...users, clientUser].find(
         (user) => user.socketId === stream.socketId
       );
       if (streamer) {
-        let isClient = streamer.socketId === clientUser.socketId;
+        const isClient = streamer.socketId === clientUser.socketId;
         return (
           <VideoStream
             key={spot}
