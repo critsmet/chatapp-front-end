@@ -30,9 +30,10 @@ const ChatRoom = ({
   setMessages: Dispatch<SetStateAction<Message[]>>;
   iceServers: RTCIceServer[];
 }) => {
-  const broadcasterConnections = useRef<Connection[]>([]);
-  const watcherConnections = useRef<Connection[]>([]);
+  // Single connections ref - one connection per peer
+  const peerConnections = useRef<Connection[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   const [message, changeMessage] = useState("");
   const [streams, setStreams] = useState<Stream[]>([]);
@@ -41,40 +42,154 @@ const ChatRoom = ({
   const clientStream = streams.find((stream) => stream.socketId === socket.id);
 
   useEffect(() => {
+    const onNewMessage = (message: Message) => {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    };
+
+    const onUserLogout = (user: User) => {
+      removeStream(user.socketId);
+      closePeerConnection(user.socketId);
+    };
+
+    const onAnswer = (socketId: string, description: RTCSessionDescription) => {
+      const foundConnectionObj = peerConnections.current.find(
+        (connectionObj) => connectionObj.socketId === socketId
+      );
+      if (foundConnectionObj) {
+        try {
+          foundConnectionObj.connection.setRemoteDescription(description);
+        } catch (error) {
+          console.error("Failed to set remote description:", error);
+        }
+      }
+    };
+
+    const onCandidate = (socketId: string, candidate: RTCIceCandidate) => {
+      const foundConnectionObj = peerConnections.current.find(
+        (connectionObj) => connectionObj.socketId === socketId
+      );
+      if (foundConnectionObj) {
+        try {
+          foundConnectionObj.connection.addIceCandidate(
+            new RTCIceCandidate(candidate)
+          );
+        } catch (error) {
+          console.error("Failed to add ICE candidate:", error);
+        }
+      }
+    };
+
+    const onBroadcastEnded = (socketId: string) => {
+      if (socketId !== clientUser.socketId) {
+        removeStream(socketId);
+        // Don't close the connection, just remove the stream
+        // The connection can still be used for chat or future streams
+      }
+    };
+
     socket.on("newMessage", onNewMessage);
-    socket.on("userLogout", onUserLogoout);
+    socket.on("userLogout", onUserLogout);
     socket.on("answer", onAnswer);
     socket.on("candidate", onCandidate);
     socket.on("broadcastEnded", onBroadcastEnded);
+
     return () => {
       socket.off("newMessage", onNewMessage);
-      socket.off("userLogout", onUserLogoout);
+      socket.off("userLogout", onUserLogout);
       socket.off("answer", onAnswer);
       socket.off("candidate", onCandidate);
       socket.off("broadcastEnded", onBroadcastEnded);
     };
-  }, []);
+  }, [clientUser.socketId]);
 
   useEffect(() => {
+    const onUserJoin = (user: User) => {
+      setUsers((prevUsers: User[]) => [...prevUsers, user]);
+      // Create connection immediately when user joins
+      createPeerConnection(user);
+    };
+
     socket.on("userJoin", onUserJoin);
     return () => {
       socket.off("userJoin", onUserJoin);
     };
-  }, [clientStream]);
+  }, [iceServers]);
 
   useEffect(() => {
+    const onOffer = async (
+      socketId: string,
+      description: RTCSessionDescriptionInit
+    ) => {
+      // Find existing connection or create new one
+      let connectionObj = peerConnections.current.find(
+        (conn) => conn.socketId === socketId
+      );
+
+      if (!connectionObj) {
+        const newConnection = createPeerConnection({ socketId } as User);
+        connectionObj = newConnection;
+      }
+
+      try {
+        await connectionObj.connection.setRemoteDescription(description);
+        const answer = await connectionObj.connection.createAnswer();
+        await connectionObj.connection.setLocalDescription(answer);
+
+        socket.emit(
+          "answer",
+          socketId,
+          connectionObj.connection.localDescription as RTCSessionDescription
+        );
+      } catch (error) {
+        console.error("Failed to handle offer:", error);
+      }
+    };
+
     socket.on("offer", onOffer);
     return () => {
       socket.off("offer", onOffer);
     };
-  }, [openSpots]);
+  }, [iceServers]);
 
   useEffect(() => {
+    const onBroadcastRequestResponse = async ({
+      approved,
+    }: {
+      approved: boolean;
+    }) => {
+      if (approved) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(
+            Constants.VIDEO_CONSTRAINTS
+          );
+
+          localStreamRef.current = stream;
+
+          setStreams((prevStreams) => [
+            ...prevStreams,
+            {
+              socketId: socket.id as string,
+              stream,
+              spot: openSpots[0],
+            },
+          ]);
+          setOpenSpots((prevSpots) => prevSpots.slice(1));
+
+          addStreamToAllConnections(stream);
+        } catch (error) {
+          console.error("Failed to get user media:", error);
+          alert("Camera access denied or not available");
+        }
+      } else {
+        alert("Max amount of videos broadcasted");
+      }
+    };
+
     socket.on("broadcastRequestResponse", onBroadcastRequestResponse);
     return () => {
       socket.off("broadcastRequestResponse", onBroadcastRequestResponse);
     };
-  }, [users, openSpots]);
+  }, [openSpots]);
 
   useEffect(() => {
     messagesContainerRef.current?.scrollTo({
@@ -83,196 +198,145 @@ const ChatRoom = ({
     });
   }, [messages]);
 
-  useEffect(() => {
-    messagesContainerRef.current?.scrollTo({
-      top: messagesContainerRef.current?.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
-
-  const onNewMessage = (message: Message) => {
-    setMessages((prevMessages) => [...prevMessages, message]);
-  };
-
-  const onUserLogoout = (user: User) => {
-    removeStream(user.socketId);
-    closeWatcherConnection(user.socketId);
-    closeBroadcasterConnection(user.socketId);
-  };
-
-  const onAnswer = (socketId: string, description: RTCSessionDescription) => {
-    const foundConnectionObj = broadcasterConnections.current.find(
-      (connectionObj) => connectionObj.socketId === socketId
+  const createPeerConnection = (user: User): Connection => {
+    const existingConnection = peerConnections.current.find(
+      (conn) => conn.socketId === user.socketId
     );
-    if (foundConnectionObj) {
-      foundConnectionObj.connection.setRemoteDescription(description);
+    if (existingConnection) {
+      return existingConnection;
     }
-  };
 
-  const onCandidate = (
-    socketId: string,
-    candidate: RTCIceCandidate,
-    fromWatcher: boolean
-  ) => {
-    const foundConnectionObj = (
-      fromWatcher ? broadcasterConnections.current : watcherConnections.current
-    ).find((connectionObj) => connectionObj.socketId === socketId);
-    if (foundConnectionObj) {
-      foundConnectionObj.connection.addIceCandidate(
-        new RTCIceCandidate(candidate)
-      );
-    }
-  };
+    const peerConnection = new RTCPeerConnection({ iceServers });
 
-  const onBroadcastEnded = (socketId: string) => {
-    if (socketId !== clientUser.socketId) {
-      closeWatcherConnection(socketId);
-      removeStream(socketId);
-    }
-  };
-
-  const onUserJoin = (user: User) => {
-    setUsers((prevUsers: User[]) => [...prevUsers, user]);
-    if (clientStream) {
-      createOffer(user, clientStream.stream);
-    }
-  };
-
-  const onOffer = (
-    socketId: string,
-    description: RTCSessionDescriptionInit
-  ) => {
-    const newRemotePeerConnection = new RTCPeerConnection({
-      iceServers,
-    });
-    createAnswer(newRemotePeerConnection, socketId, description);
-    getStream(newRemotePeerConnection, socketId);
-  };
-
-  const onBroadcastRequestResponse = async ({
-    approved,
-  }: {
-    approved: boolean;
-  }) => {
-    if (approved) {
-      const stream = await navigator.mediaDevices.getUserMedia(
-        Constants.VIDEO_CONSTRAINTS
-      );
-      setStreams((prevStreams) => [
-        ...prevStreams,
-        {
-          socketId: socket.id as string,
-          stream,
-          spot: openSpots[0],
-        },
-      ]);
-      setOpenSpots((prevSpots) => prevSpots.slice(1));
-      users.forEach((user) => createOffer(user, stream));
-    } else {
-      alert("Max amount of videos broadcasted");
-    }
-  };
-
-  const endBroadcast = () => {
-    broadcasterConnections.current.forEach((connectionObj) =>
-      connectionObj.connection.close()
-    );
-    broadcasterConnections.current = [];
-    removeStream(clientUser.socketId);
-    socket.emit("endBroadcast");
-  };
-
-  const createAnswer = async (
-    connection: RTCPeerConnection,
-    socketId: string,
-    description: RTCSessionDescriptionInit
-  ) => {
-    watcherConnections.current = [
-      ...watcherConnections.current,
-      {
-        socketId,
-        connection: connection,
-      },
-    ];
-    connection.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("candidate", socketId, event.candidate, true);
+    peerConnection.onnegotiationneeded = async () => {
+      try {
+        console.log(`Negotiation needed with ${user.socketId}`);
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit(
+          "offer",
+          user.socketId,
+          peerConnection.localDescription as RTCSessionDescription
+        );
+      } catch (error) {
+        console.error(`Negotiation failed with ${user.socketId}:`, error);
       }
     };
-    await connection.setRemoteDescription(description);
-    const sdp = await connection.createAnswer();
-    await connection.setLocalDescription(sdp);
-    socket.emit(
-      "answer",
-      socketId,
-      connection.localDescription as RTCSessionDescription
-    );
-  };
 
-  const createOffer = async (user: User, stream: MediaStream) => {
-    const newLocalPeerConnection = new RTCPeerConnection({
-      iceServers: iceServers,
-    });
-    broadcasterConnections.current = [
-      ...broadcasterConnections.current,
-      { socketId: user.socketId, connection: newLocalPeerConnection },
-    ];
-    for (const track of stream.getTracks()) {
-      newLocalPeerConnection.addTrack(track, stream);
-    }
-    newLocalPeerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("candidate", user.socketId, event.candidate, false);
+    peerConnection.onconnectionstatechange = () => {
+      console.log(
+        `Connection state with ${user.socketId}: ${peerConnection.connectionState}`
+      );
+      if (peerConnection.connectionState === "failed") {
+        console.error(`Connection failed with user: ${user.socketId}`);
       }
     };
-    const sdp = await newLocalPeerConnection.createOffer();
-    await newLocalPeerConnection.setLocalDescription(sdp);
-    socket.emit(
-      "offer",
-      user.socketId,
-      newLocalPeerConnection.localDescription as RTCSessionDescription
-    );
-  };
 
-  const closeWatcherConnection = (socketId: string) => {
-    watcherConnections.current = watcherConnections.current.filter(
-      (connectionObj) => {
-        if (connectionObj.socketId !== socketId) {
-          return true;
-        } else {
-          connectionObj.connection.close();
-          return false;
-        }
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log(
+        `ICE connection state with ${user.socketId}: ${peerConnection.iceConnectionState}`
+      );
+    };
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("candidate", user.socketId, event.candidate);
       }
-    );
-  };
+    };
 
-  const closeBroadcasterConnection = (socketId: string) => {
-    broadcasterConnections.current = broadcasterConnections.current.filter(
-      (connectionObj) => {
-        if (connectionObj.socketId !== socketId) {
-          return true;
-        } else {
-          connectionObj.connection.close();
-          return false;
-        }
-      }
-    );
-  };
-
-  const getStream = (connection: RTCPeerConnection, socketId: string) => {
-    connection.ontrack = (event) => {
+    peerConnection.ontrack = (event) => {
       if (event.track.kind === "video") {
-        setStreams((prevStreams) => [
-          ...prevStreams,
-          {
-            socketId,
-            stream: event.streams[0],
-            spot: openSpots[0],
-          },
-        ]);
+        setOpenSpots((currentOpenSpots) => {
+          const spotToUse = currentOpenSpots[0];
+          setStreams((prevStreams) => {
+            const existingStreamIndex = prevStreams.findIndex(
+              (stream) => stream.socketId === user.socketId
+            );
+
+            if (existingStreamIndex >= 0) {
+              const newStreams = [...prevStreams];
+              newStreams[existingStreamIndex] = {
+                ...newStreams[existingStreamIndex],
+                stream: event.streams[0],
+              };
+              return newStreams;
+            } else {
+              return [
+                ...prevStreams,
+                {
+                  socketId: user.socketId,
+                  stream: event.streams[0],
+                  spot: spotToUse,
+                },
+              ];
+            }
+          });
+
+          const existingStream = streams.find(
+            (s) => s.socketId === user.socketId
+          );
+          return existingStream ? currentOpenSpots : currentOpenSpots.slice(1);
+        });
       }
     };
+
+    if (localStreamRef.current) {
+      for (const track of localStreamRef.current.getTracks()) {
+        peerConnection.addTrack(track, localStreamRef.current);
+      }
+    }
+
+    const connectionObj = {
+      socketId: user.socketId,
+      connection: peerConnection,
+    };
+
+    peerConnections.current = [...peerConnections.current, connectionObj];
+    return connectionObj;
+  };
+
+  const addStreamToAllConnections = (stream: MediaStream) => {
+    peerConnections.current.forEach((connectionObj) => {
+      const senders = connectionObj.connection.getSenders();
+      senders.forEach((sender) => {
+        if (sender.track) {
+          connectionObj.connection.removeTrack(sender);
+        }
+      });
+
+      for (const track of stream.getTracks()) {
+        connectionObj.connection.addTrack(track, stream);
+      }
+    });
+  };
+
+  const removeStreamFromAllConnections = (stream: MediaStream) => {
+    peerConnections.current.forEach((connectionObj) => {
+      const senders = connectionObj.connection.getSenders();
+      senders.forEach((sender) => {
+        if (sender.track && stream.getTracks().includes(sender.track)) {
+          connectionObj.connection.removeTrack(sender);
+        }
+      });
+    });
+  };
+
+  const closePeerConnection = (socketId: string) => {
+    peerConnections.current = peerConnections.current.filter(
+      (connectionObj) => {
+        if (connectionObj.socketId !== socketId) {
+          return true;
+        } else {
+          connectionObj.connection.ontrack = null;
+          connectionObj.connection.onicecandidate = null;
+          connectionObj.connection.onconnectionstatechange = null;
+          connectionObj.connection.oniceconnectionstatechange = null;
+          connectionObj.connection.onnegotiationneeded = null;
+          connectionObj.connection.close();
+          return false;
+        }
+      }
+    );
   };
 
   const removeStream = (socketId: string) => {
@@ -282,19 +346,25 @@ const ChatRoom = ({
     if (streamToBeRemoved) {
       streamToBeRemoved.stream.getTracks().forEach((track) => track.stop());
       setStreams((prevStreams) => {
-        return prevStreams.filter((stream) => {
-          if (stream.socketId !== socketId) {
-            return true;
-          } else {
-            return false;
-          }
-        });
+        return prevStreams.filter((stream) => stream.socketId !== socketId);
       });
       setOpenSpots((prevOpenSpots) => [
         ...prevOpenSpots,
         streamToBeRemoved.spot,
       ]);
     }
+  };
+
+  const endBroadcast = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      removeStreamFromAllConnections(localStreamRef.current);
+
+      localStreamRef.current = null;
+    }
+
+    removeStream(clientUser.socketId);
+    socket.emit("endBroadcast");
   };
 
   const handleSend = (e: FormEvent<HTMLFormElement>) => {
