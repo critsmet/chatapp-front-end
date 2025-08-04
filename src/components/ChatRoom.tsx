@@ -238,20 +238,16 @@ const ChatRoom = ({
             report.state === "succeeded"
           ) {
             console.log(
-              `Connection Type: ${(report: { priority: number }) => {
-                if (report.priority > 2000000000) {
-                  return "🏠 DIRECT (Host-to-Host)";
-                } else if (report.priority > 1000000000) {
-                  return "🔄 NAT TRAVERSAL (STUN)";
-                } else {
-                  return "🔄 RELAYED (TURN Server)";
-                }
-              }}`
+              `Connection Type: ${
+                report.priority > 2000000000
+                  ? "🏠 DIRECT (Host-to-Host)"
+                  : report.priority > 1000000000
+                    ? "🔄 NAT TRAVERSAL (STUN)"
+                    : "🔄 RELAYED (TURN Server)"
+              }`
             );
             console.log(`Local Candidate: ${report.localCandidateId}`);
             console.log(`Remote Candidate: ${report.remoteCandidateId}`);
-            console.log(`Bytes Sent: ${report.bytesSent || 0}`);
-            console.log(`Bytes Received: ${report.bytesReceived || 0}`);
             console.log(
               `Round Trip Time: ${report.currentRoundTripTime || "N/A"}ms`
             );
