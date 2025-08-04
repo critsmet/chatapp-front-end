@@ -30,7 +30,6 @@ const ChatRoom = ({
   setMessages: Dispatch<SetStateAction<Message[]>>;
   iceServers: RTCIceServer[];
 }) => {
-  // Single connections ref - one connection per peer
   const peerConnections = useRef<Connection[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -82,8 +81,6 @@ const ChatRoom = ({
     const onBroadcastEnded = (socketId: string) => {
       if (socketId !== clientUser.socketId) {
         removeStream(socketId);
-        // Don't close the connection, just remove the stream
-        // The connection can still be used for chat or future streams
       }
     };
 
@@ -105,7 +102,6 @@ const ChatRoom = ({
   useEffect(() => {
     const onUserJoin = (user: User) => {
       setUsers((prevUsers: User[]) => [...prevUsers, user]);
-      // Create connection immediately when user joins
       createPeerConnection(user);
     };
 
