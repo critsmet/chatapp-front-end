@@ -228,13 +228,53 @@ const ChatRoom = ({
       }
     };
 
-    peerConnection.oniceconnectionstatechange = () => {
-      console.log(
-        `ICE connection state with ${user.socketId}: ${peerConnection.iceConnectionState}`
-      );
+    peerConnection.oniceconnectionstatechange = async () => {
+      try {
+        const stats = await peerConnection.getStats();
+
+        stats.forEach((report) => {
+          if (
+            report.type === "candidate-pair" &&
+            report.state === "succeeded"
+          ) {
+            console.log(
+              `Connection Type: ${(report: { priority: number }) => {
+                if (report.priority > 2000000000) {
+                  return "🏠 DIRECT (Host-to-Host)";
+                } else if (report.priority > 1000000000) {
+                  return "🔄 NAT TRAVERSAL (STUN)";
+                } else {
+                  return "🔄 RELAYED (TURN Server)";
+                }
+              }}`
+            );
+            console.log(`Local Candidate: ${report.localCandidateId}`);
+            console.log(`Remote Candidate: ${report.remoteCandidateId}`);
+            console.log(`Bytes Sent: ${report.bytesSent || 0}`);
+            console.log(`Bytes Received: ${report.bytesReceived || 0}`);
+            console.log(
+              `Round Trip Time: ${report.currentRoundTripTime || "N/A"}ms`
+            );
+          }
+        });
+      } catch (error) {
+        console.error(`Failed to get stats`, error);
+      }
     };
 
     peerConnection.onicecandidate = (event) => {
+      // Log the ICE candidate details
+      console.log(`ICE Candidate for ${user.socketId}:`, {
+        type: event?.candidate?.type,
+        protocol: event?.candidate?.protocol,
+        address: event?.candidate?.address,
+        port: event?.candidate?.port,
+        priority: event?.candidate?.priority,
+        foundation: event?.candidate?.foundation,
+        component: event?.candidate?.component,
+        candidateString: event?.candidate?.candidate,
+      });
+
       if (event.candidate) {
         socket.emit("candidate", user.socketId, event.candidate);
       }
