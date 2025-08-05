@@ -116,7 +116,6 @@ const ChatRoom = ({
       socketId: string,
       description: RTCSessionDescriptionInit
     ) => {
-      // Find existing connection or create new one
       let connectionObj = peerConnections.current.find(
         (conn) => conn.socketId === socketId
       );
@@ -240,10 +239,10 @@ const ChatRoom = ({
             console.log(
               `Connection Type: ${
                 report.priority > 2000000000
-                  ? "🏠 DIRECT (Host-to-Host)"
+                  ? "DIRECT (Host-to-Host)"
                   : report.priority > 1000000000
-                    ? "🔄 NAT TRAVERSAL (STUN)"
-                    : "🔄 RELAYED (TURN Server)"
+                    ? "NAT TRAVERSAL (STUN)"
+                    : "RELAYED (TURN Server)"
               }`
             );
             console.log(`Local Candidate: ${report.localCandidateId}`);
